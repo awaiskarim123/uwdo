@@ -1,3 +1,4 @@
+
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { registerUserSchema } from '@/lib/validations/user';
@@ -10,23 +11,29 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    
+    const body = await request.json().catch((error) => {
+      if (error instanceof SyntaxError || error instanceof TypeError) {
+        return null; 
+      }
+      throw error;
+    });
+
+    if (!body || typeof body !== 'object') {
+      return errorResponse('Invalid JSON payload', 400);
+    }
 
     const validationResult = registerUserSchema.safeParse(body);
 
     if (!validationResult.success) {
       const errors: Record<string, string[]> = {};
-
       validationResult.error.issues.forEach((issue) => {
         const field = issue.path[0] as string;
-
         if (!errors[field]) {
           errors[field] = [];
         }
-
         errors[field].push(issue.message);
       });
-
       return validationErrorResponse(errors);
     }
 
@@ -63,6 +70,7 @@ export async function POST(request: NextRequest) {
     return successResponse(user, 'User registered successfully', 201);
   } catch (error) {
     console.error('Registration error:', error);
+    
     return errorResponse('An error occurred during registration', 500);
   }
 }
