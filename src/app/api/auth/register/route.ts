@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       return validationErrorResponse(errors);
     }
 
-    const { name, email, password, role } = validationResult.data;
+    const { name, email, password } = validationResult.data;
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -49,12 +49,15 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await hashPassword(password);
 
+    // Fixed role assignment to prevent privilege escalation
+    // All new users are assigned VICE_PRESIDENT role (non-administrative)
+    // Role from request body is ignored for security
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        role: role ?? 'VICE_PRESIDENT',
+        role: 'VICE_PRESIDENT',
       },
       select: {
         id: true,

@@ -21,7 +21,9 @@ export const registerUserSchema = z.object({
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
       'Password must contain at least one lowercase letter, one uppercase letter, and one number'
     ),
-  role: z.enum(['PRESIDENT', 'VICE_PRESIDENT']).optional().default('VICE_PRESIDENT'),
+  // Role is not accepted from the request body to prevent privilege escalation
+  // All new users are assigned VICE_PRESIDENT role by the server
+  role: z.any().optional().strip(),
 });
 
 export type RegisterUserInput = z.infer<typeof registerUserSchema>;
