@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Prisma Schema for Universal Welfare and Development Organization (UWDO)
+// Production-ready schema with role-based access control, audit trails, and scalability
 
 generator client {
   provider = "prisma-client-js"
@@ -11,4 +8,163 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  PRESIDENT
+  VICE_PRESIDENT
+}
+
+enum ProgramStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PageType {
+  HOME
+  ABOUT_US
+  PROGRAMS
+  CONTACT_US
+}
+
+enum ContactStatus {
+  PENDING
+  READ
+  REPLIED
+  ARCHIVED
+}
+
+
+model User {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(255)
+  email     String   @unique @db.VarChar(255)
+  password  String   
+  role      UserRole @default(VICE_PRESIDENT)
+  isActive  Boolean  @default(true) @map("is_active")
+  
+  // Relationships
+  createdPrograms    Program[]       @relation("ProgramCreator")
+  updatedPrograms    Program[]       @relation("ProgramUpdater")
+  createdPages       PageContent[]   @relation("PageCreator")
+  updatedPages       PageContent[]   @relation("PageUpdater")
+  repliedContacts    ContactMessage[] @relation("ContactReplier")
+  authTokens         AuthToken[]
+  
+  // Audit fields
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+
+
+model Program {
+  id          String        @id @default(uuid())
+  title       String        @db.VarChar(255)
+  slug        String        @unique @db.VarChar(255)
+  description String?       @db.Text
+  content     String        @db.Text
+  imageUrl    String?       @map("image_url") @db.VarChar(500)
+  status      ProgramStatus @default(DRAFT)
+  order       Int           @default(0) // For custom ordering
+  
+  // Relationships
+  createdBy   User   @relation("ProgramCreator", fields: [createdById], references: [id])
+  createdById String @map("created_by_id")
+  
+  updatedBy   User   @relation("ProgramUpdater", fields: [updatedById], references: [id])
+  updatedById String @map("updated_by_id")
+  
+  // Audit fields
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@index([slug])
+  @@index([status])
+  @@index([order])
+  @@index([createdAt])
+  @@map("programs")
+}
+
+
+model PageContent {
+  id          String   @id @default(uuid())
+  pageType    PageType @unique @map("page_type")
+  title       String   @db.VarChar(255)
+  content     String   @db.Text
+  metaTitle   String?  @map("meta_title") @db.VarChar(255)
+  metaDescription String? @map("meta_description") @db.Text
+  
+  // Relationships
+  createdBy   User   @relation("PageCreator", fields: [createdById], references: [id])
+  createdById String @map("created_by_id")
+  
+  updatedBy   User   @relation("PageUpdater", fields: [updatedById], references: [id])
+  updatedById String @map("updated_by_id")
+  
+  // Audit fields
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@index([pageType])
+  @@map("page_contents")
+}
+
+
+
+model ContactMessage {
+  id        String        @id @default(uuid())
+  name      String        @db.VarChar(255)
+  email     String        @db.VarChar(255)
+  subject   String?       @db.VarChar(255)
+  message   String        @db.Text
+  status    ContactStatus @default(PENDING)
+  replyMessage String?    @map("reply_message") @db.Text
+  
+  // Relationships
+  repliedBy User?   @relation("ContactReplier", fields: [repliedById], references: [id])
+  repliedById String? @map("replied_by_id")
+  
+  // Audit fields
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  repliedAt DateTime? @map("replied_at")
+  
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@map("contact_messages")
+}
+
+
+
+model AuthToken {
+  id        String   @id @default(uuid())
+  token     String   @unique @db.VarChar(500)
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+  
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Audit fields
+  createdAt DateTime @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+  
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([isRevoked])
+  @@map("auth_tokens")
 }
