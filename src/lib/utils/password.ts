@@ -69,7 +69,7 @@ export async function verifyPassword(
     return result;
   } catch (error) {
     // Log error for debugging but don't leak information about the error type
-    // Re-throw as a generic error to maintain consistent timing
+    // Return false on error to avoid throwing during verification and maintain consistent timing
     console.error('Password verification error:', error);
     return false;
   }
